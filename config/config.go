@@ -12,8 +12,10 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port     string `yaml:"port"`
-	LogLevel string `yaml:"log_level"`
+	Port           string   `yaml:"port"`
+	LogLevel       string   `yaml:"log_level"`
+	APIKeys        []string `yaml:"api_keys"`
+	AllowedOrigins []string `yaml:"allowed_origins"`
 }
 
 type ProviderConfig struct {

@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"crypto/rand"
+	"math/big"
+	"time"
+)
 
 type ChatCompletionRequest struct {
 	Model            string                 `json:"model"`
@@ -135,9 +139,16 @@ func generateID(prefix string) string {
 
 func randomString(length int) string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	charsetLen := big.NewInt(int64(len(charset)))
 	b := make([]byte, length)
 	for i := range b {
-		b[i] = charset[i%len(charset)]
+		idx, err := rand.Int(rand.Reader, charsetLen)
+		if err != nil {
+			// Fallback: use index-based as last resort (should never happen)
+			b[i] = charset[i%len(charset)]
+			continue
+		}
+		b[i] = charset[idx.Int64()]
 	}
 	return string(b)
 }

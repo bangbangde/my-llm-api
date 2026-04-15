@@ -1,6 +1,16 @@
 server:
   port: 8080
   log_level: info
+  # API keys for authenticating incoming requests.
+  # Leave empty to disable authentication (not recommended for production).
+  api_keys:
+    - your-gateway-api-key-here
+    # - another-key-here
+  # CORS allowed origins. Use ["*"] to allow all (dev only).
+  # Leave empty to block all cross-origin requests.
+  allowed_origins:
+    - https://your-frontend.example.com
+    # - http://localhost:3000
 
 providers:
   siliconflow:

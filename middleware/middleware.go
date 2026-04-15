@@ -2,10 +2,59 @@ package middleware
 
 import (
 	"log"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
+
+// Auth returns a Bearer Token authentication middleware.
+// If apiKeys is empty, all requests are allowed through (useful for dev/test).
+func Auth(apiKeys []string) gin.HandlerFunc {
+	if len(apiKeys) == 0 {
+		return func(c *gin.Context) { c.Next() }
+	}
+
+	keySet := make(map[string]struct{}, len(apiKeys))
+	for _, k := range apiKeys {
+		keySet[k] = struct{}{}
+	}
+
+	return func(c *gin.Context) {
+		// Health endpoint is exempt from auth
+		if c.FullPath() == "/health" {
+			c.Next()
+			return
+		}
+
+		authHeader := c.GetHeader("Authorization")
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		if token == "" || token == authHeader {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": gin.H{
+					"message": "missing or invalid Authorization header",
+					"type":    "authentication_error",
+					"code":    "unauthorized",
+				},
+			})
+			return
+		}
+
+		if _, ok := keySet[token]; !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": gin.H{
+					"message": "invalid API key",
+					"type":    "authentication_error",
+					"code":    "invalid_api_key",
+				},
+			})
+			return
+		}
+
+		c.Next()
+	}
+}
 
 func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -49,11 +98,34 @@ func Recovery() gin.HandlerFunc {
 	}
 }
 
-func CORS() gin.HandlerFunc {
+// CORS returns a middleware that enforces an origin allowlist.
+// If allowedOrigins is empty, all cross-origin requests are blocked.
+// Pass []string{"*"} only when you explicitly want to allow any origin.
+func CORS(allowedOrigins []string) gin.HandlerFunc {
+	originSet := make(map[string]struct{}, len(allowedOrigins))
+	allowAll := false
+	for _, o := range allowedOrigins {
+		if o == "*" {
+			allowAll = true
+			break
+		}
+		originSet[o] = struct{}{}
+	}
+
 	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		origin := c.Request.Header.Get("Origin")
+		if origin != "" {
+			allowed := allowAll
+			if !allowed {
+				_, allowed = originSet[origin]
+			}
+			if allowed {
+				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+				c.Writer.Header().Set("Vary", "Origin")
+				c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
+				c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			}
+		}
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)

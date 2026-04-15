@@ -7,7 +7,6 @@ import (
 	"github.com/my-llm-api/config"
 	"github.com/my-llm-api/handlers"
 	"github.com/my-llm-api/middleware"
-	"github.com/my-llm-api/providers"
 	"github.com/my-llm-api/scheduler"
 )
 
@@ -16,36 +15,14 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	sched := scheduler.NewScheduler()
-
-	for providerName, providerConfig := range config.AppConfig.Providers {
-		var providerType providers.ProviderType
-		switch providerName {
-		case "siliconflow":
-			providerType = providers.ProviderSiliconFlow
-		default:
-			log.Printf("Unknown provider: %s, skipping", providerName)
-			continue
-		}
-
-		provider := providers.NewSiliconFlowProvider(providerConfig.BaseURL)
-		accountPool := scheduler.NewAccountPool(providerConfig.Accounts)
-
-		sched.RegisterProvider(providerType, provider, accountPool)
-
-		for _, modelName := range providerConfig.Models {
-			sched.RegisterModel(modelName, &scheduler.ModelConfig{
-				ProviderType: providerType,
-				ModelName:    modelName,
-				Priority:     1,
-				Weight:       1,
-				Enabled:      true,
-			})
-		}
-
-		log.Printf("Registered provider: %s with %d accounts, %d models",
-			providerName, accountPool.HealthyCount(), len(providerConfig.Models))
+	// 使用工厂模式创建调度器
+	factory := scheduler.DefaultFactory()
+	sched, err := factory.BuildScheduler(config.AppConfig)
+	if err != nil {
+		log.Fatalf("Failed to build scheduler: %v", err)
 	}
+
+	sched.LogStats()
 
 	router := setupRouter(sched)
 
@@ -61,7 +38,8 @@ func setupRouter(sched *scheduler.Scheduler) *gin.Engine {
 	router := gin.New()
 	router.Use(middleware.Logger())
 	router.Use(middleware.Recovery())
-	router.Use(middleware.CORS())
+	router.Use(middleware.CORS(config.AppConfig.Server.AllowedOrigins))
+	router.Use(middleware.Auth(config.AppConfig.Server.APIKeys))
 
 	chatHandler := handlers.NewChatHandler(sched)
 

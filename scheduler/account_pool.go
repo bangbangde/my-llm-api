@@ -65,7 +65,8 @@ func (p *AccountPool) Select() *Account {
 	for _, acc := range p.accounts {
 		if acc.Status == AccountStatusHealthy {
 			healthyAccounts = append(healthyAccounts, acc)
-		} else if time.Since(acc.LastUsed) > p.recoverTime && acc.ErrorCount >= p.maxErrors {
+		} else if time.Since(acc.LastUsed) > p.recoverTime {
+			// 超过恢复期，自动恢复
 			healthyAccounts = append(healthyAccounts, acc)
 		}
 	}

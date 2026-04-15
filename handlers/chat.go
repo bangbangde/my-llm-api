@@ -123,36 +123,27 @@ func (h *ChatHandler) handleError(c *gin.Context, err error) {
 }
 
 func (h *ChatHandler) ListModels(c *gin.Context) {
-	models := gin.H{
-		"object": "list",
-		"data": []gin.H{
-			{
-				"id":       "Qwen/Qwen2.5-7B-Instruct",
-				"object":   "model",
-				"created":  time.Now().Unix(),
-				"owned_by": "siliconflow",
-			},
-			{
-				"id":       "Qwen/Qwen2.5-72B-Instruct",
-				"object":   "model",
-				"created":  time.Now().Unix(),
-				"owned_by": "siliconflow",
-			},
-			{
-				"id":       "deepseek-ai/DeepSeek-V2.5",
-				"object":   "model",
-				"created":  time.Now().Unix(),
-				"owned_by": "siliconflow",
-			},
-			{
-				"id":       "Pro/Qwen/Qwen2.5-7B-Instruct",
-				"object":   "model",
-				"created":  time.Now().Unix(),
-				"owned_by": "siliconflow",
-			},
-		},
+	modelNames := h.scheduler.ListModels()
+	now := time.Now().Unix()
+
+	data := make([]gin.H, 0, len(modelNames))
+	for _, name := range modelNames {
+		owner := h.scheduler.GetModelOwner(name)
+		if owner == "" {
+			owner = "system"
+		}
+		data = append(data, gin.H{
+			"id":       name,
+			"object":   "model",
+			"created":  now,
+			"owned_by": owner,
+		})
 	}
-	c.JSON(http.StatusOK, models)
+
+	c.JSON(http.StatusOK, gin.H{
+		"object": "list",
+		"data":   data,
+	})
 }
 
 func (h *ChatHandler) Health(c *gin.Context) {

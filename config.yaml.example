@@ -1,0 +1,20 @@
+server:
+  port: 8080
+  log_level: info
+
+providers:
+  siliconflow:
+    base_url: https://api.siliconflow.cn/v1
+    accounts:
+      - id: primary
+        api_key: your-api-key-here
+        weight: 1
+        enabled: true
+      # - id: backup
+      #   api_key: your-backup-key-here
+      #   weight: 1
+      #   enabled: true
+    models:
+      - Qwen/Qwen2.5-7B-Instruct
+      - Qwen/Qwen2.5-72B-Instruct
+      - deepseek-ai/DeepSeek-V2.5
